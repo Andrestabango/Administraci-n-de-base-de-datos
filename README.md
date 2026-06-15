@@ -85,7 +85,7 @@ proyecto-bd-heterogenea-itiz3201/
 ├── README.md                                 # Este archivo
 ├── .gitignore                               # Archivos a ignorar
 │
-├── oracle/                                   # Oracle 19c (Guillermo)
+├── oracle/                                   # Oracle 19c
 │   ├── 00_limpieza.sql                      # DROP usuarios/roles/tbs de laboratorio
 │   ├── 01_setup_oracle.sql                  # CREATE TABLESPACE tbs_logistica
 │   │                                        # CREATE USER dba_oracle, logistica
@@ -94,12 +94,12 @@ proyecto-bd-heterogenea-itiz3201/
 │   ├── listener.ora                         # Configuración listener puerto 1523
 │   └── tnsnames.ora                         # Alias ORCL, ORCLPDB con puerto 1523
 │
-├── mariadb/                                  # MariaDB 11 (Israel)
+├── mariadb/                                  # MariaDB 11
 │   ├── 00_setup.sql                         # GRANT dba_mariadb, CREATE sync_reader
 │   └── 01_ddl_tablas.sql                    # CREATE TABLE categorias, productos,
 │                                            # bodegas, inventario_ubicacion
 │
-├── sqlserver/                                # SQL Server 2022 (Anthony)
+├── sqlserver/                                # SQL Server 2022 
 │   ├── 00_setup.sql                         # CREATE DATABASE reportes
 │   │                                        # CREATE LOGIN dba_sqlserver
 │   ├── 01_ddl_tablas.sql                    # CREATE TABLE consolidado_stock
@@ -107,29 +107,29 @@ proyecto-bd-heterogenea-itiz3201/
 │   │                                        # PERSISTED columna calculada
 │   └── 02_permisos_sync.sql                 # GRANT DELETE a sync_writer
 │
-├── docker/                                   # Docker (Luis)
+├── docker/                                   # Docker 
 │   ├── deploy_mariadb.sh                    # docker run mariadb:11 puerto 3307
 │   ├── deploy_sqlserver.sh                  # docker run mssql 2022 puerto 1434
 │   └── docker-compose.yml                   # Orquestación completa 2 contenedores
 │
 ├── python/                                   # Scripts Python + Faker
 │   ├── requirements.txt                     # Faker, mysql-connector, cx_Oracle
-│   │                                        # pyodbc, protobuf (Luis)
+│   │                                        # pyodbc, protobuf 
 │   ├── generar_mariadb.py                   # Carga inicial: 10 categorias
 │   │                                        # 1000 proveedores, 8000 productos
-│   │                                        # 50 bodegas, ~10K inventario (Israel)
+│   │                                        # 50 bodegas, ~10K inventario
 │   ├── generar_oracle.py                    # Carga inicial: 200.000 movimientos
-│   │                                        # 1-5 detalles/movimiento (Guillermo)
+│   │                                        # 1-5 detalles/movimiento 
 │   ├── sync_stock.py                        # ETL HORARIO (cron 0 * * * *)
-│   │                                        # MariaDB → SQL Server stock (Anthony)
+│   │                                        # MariaDB → SQL Server stock 
 │   ├── sync_rotacion.py                     # ETL DIARIO (cron 0 0 * * *)
-│   │                                        # Oracle + MariaDB → SQL Server (Guillermo)
-│   └── prueba_carga_5000.py                 # Test: 5000 registros inventario (Anthony)
+│   │                                        # Oracle + MariaDB → SQL Server 
+│   └── prueba_carga_5000.py                 # Test: 5000 registros inventario 
 │
 ├── scripts/                                  # Scripts de instalación
-│   ├── 01_install_docker.sh                 # Remover Podman, instalar Docker CE (Luis)
+│   ├── 01_install_docker.sh                 # Remover Podman, instalar Docker CE 
 │   └── crontab.txt                          # Jobs: sync_stock (horario)
-│                                            # sync_rotacion (diario) (Guillermo)
+│                                            # sync_rotacion (diario) 
 │
 └── docs/                                     # Documentación
     ├── diagrama_arquitectura.png            # Visualización componentes
