@@ -1,0 +1,24 @@
+# ============================================================================
+# crontab.txt  ·  Jobs programados de la capa de interconexion
+# Instalar (como el usuario que ejecuta el ETL, p.ej. oracle):
+#     crontab scripts/crontab.txt
+# Verificar:
+#     crontab -l
+# Ajustar RUTA_PROYECTO y el interprete de Python segun el entorno.
+# ============================================================================
+
+# Variables de entorno para los jobs
+SHELL=/bin/bash
+PYTHON=/home/oracle/.venv/bin/python
+PROY=/home/oracle/proyecto-bd-heterogenea-itiz3201/python
+LOGS=/home/oracle/proyecto-bd-heterogenea-itiz3201/logs
+
+# ── ETL HORARIO: stock consolidado (MariaDB -> SQL Server) ─────────────────
+# Cada hora en el minuto 0. El stock cambia constantemente; la gerencia
+# necesita una foto consolidada fresca.
+0 * * * *  cd $PROY && $PYTHON sync_stock.py >> $LOGS/sync_stock.log 2>&1
+
+# ── ETL DIARIO: rotacion y abastecimiento (Oracle + MariaDB -> SQL Server) ─
+# Todos los dias a medianoche. Agrega grandes volumenes de movimientos;
+# se ejecuta fuera del horario operativo.
+0 0 * * *  cd $PROY && $PYTHON sync_rotacion.py >> $LOGS/sync_rotacion.log 2>&1
