@@ -1,0 +1,61 @@
+# ============================================================================
+# docker-compose.yml  ·  Orquestacion de los 2 SGBD en Docker
+# (Oracle 19c corre NATIVO en el host, no en Docker.)
+# Puertos NO-DEFAULT: MariaDB 3307, SQL Server 1434.
+# Uso:
+#   export MARIADB_ROOT_PWD=... MSSQL_SA_PWD=...
+#   docker compose up -d
+# Las credenciales se toman de variables de entorno / archivo .env (no versionado).
+# ============================================================================
+services:
+
+  mariadb:
+    image: mariadb:11
+    container_name: mariadb_inventarios
+    restart: unless-stopped
+    ports:
+      - "3307:3306"                      # host 3307 (no-default) -> 3306
+    environment:
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PWD}"
+      MARIADB_DATABASE: inventarios
+      TZ: America/Guayaquil
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=200
+    volumes:
+      - /u02/docker/mariadb/data:/var/lib/mysql:Z
+    networks:
+      - bd_heterogenea_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver_reportes
+    restart: unless-stopped
+    ports:
+      - "1434:1433"                      # host 1434 (no-default) -> 1433
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PWD}"
+      MSSQL_PID: Developer
+      TZ: America/Guayaquil
+    mem_limit: 3g
+    volumes:
+      - /u02/docker/sqlserver/data:/var/opt/mssql/data:Z
+    networks:
+      - bd_heterogenea_net
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+networks:
+  bd_heterogenea_net:
+    name: bd_heterogenea_net
+    driver: bridge
