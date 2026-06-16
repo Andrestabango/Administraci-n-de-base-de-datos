@@ -1,0 +1,16 @@
+# ============================================================================
+# listener.ora  ·  Oracle 19c
+# Listener configurado en el puerto NO-DEFAULT 1523 (default era 1521).
+# Ubicacion en la VM: $ORACLE_HOME/network/admin/listener.ora
+# Aplicar:  lsnrctl stop && cp listener.ora $ORACLE_HOME/network/admin/ && lsnrctl start
+# ============================================================================
+
+LISTENER =
+  (DESCRIPTION_LIST =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = oracle.lab.local)(PORT = 1523))
+      (ADDRESS = (PROTOCOL = IPC)(KEY = EXTPROC1523))
+    )
+  )
+
+ADR_BASE_LISTENER = /u01/app/oracle

@@ -1,0 +1,26 @@
+# ============================================================================
+# tnsnames.ora  ·  Oracle 19c
+# Alias de conexion apuntando al puerto NO-DEFAULT 1523.
+# Ubicacion en la VM: $ORACLE_HOME/network/admin/tnsnames.ora
+# ============================================================================
+
+LISTENER_ORCL =
+  (ADDRESS = (PROTOCOL = TCP)(HOST = oracle.lab.local)(PORT = 1523))
+
+ORCL =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = oracle.lab.local)(PORT = 1523))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = orcl.lab.local)
+    )
+  )
+
+ORCLPDB =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = oracle.lab.local)(PORT = 1523))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = orclpdb.lab.local)
+    )
+  )
