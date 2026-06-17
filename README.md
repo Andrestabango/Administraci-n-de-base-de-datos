@@ -324,25 +324,6 @@ SELECT COUNT(*) FROM reportes.reporte_rotacion;
 
 ---
 
-## 🔐 Credenciales
-
-### Oracle
-- **DBA**: `dba_oracle` / `OracleProj#2026` (ROL DBA)
-- **App**: `logistica` / `Logist1ca#2026` (CONNECT, RESOURCE)
-- **Admin**: `SYS` / (contraseña de instalación)
-
-### MariaDB
-- **Root**: `root` / `RootMariaDB#2026`
-- **DBA**: `dba_mariadb` / `MariaDB_Proj#2026` (ALL PRIVILEGES)
-- **Reader**: `sync_reader` / `SyncRead#2026` (SELECT only)
-
-### SQL Server
-- **SA**: `sa` / `SqlSrvProj#2026` (Superusuario)
-- **DBA**: `dba_sqlserver` / `SqlSrvDBA#2026` (db_owner)
-- **ETL**: `sync_writer` / `SyncWrite#2026` (INSERT, UPDATE, DELETE, SELECT)
-
----
-
 ## 🐍 Python + Faker + ETL
 
 ### Dependencias (requirements.txt)
