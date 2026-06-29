@@ -1,88 +1,98 @@
 """
-sync_stock.py  ·  ETL HORARIO  ·  MariaDB  ->  SQL Server
-
-Consolida el stock fisico de MariaDB (inventario_ubicacion + productos +
-bodegas) y lo carga en reportes.consolidado_stock de SQL Server.
-
-Estrategia: DELETE + INSERT (full refresh) sobre la tabla destino dentro de
-una transaccion. El stock cambia constantemente, por lo que se reconstruye la
-foto consolidada cada hora; el volumen (decenas de miles de filas agregadas)
-hace que el full refresh sea simple, seguro y suficientemente rapido.
-
-Programado por cron:  0 * * * *   (ver scripts/crontab.txt)
-
-Uso manual:
-    python sync_stock.py
+Sincronizacion de stock consolidado: MariaDB -> SQL Server
+Ejecucion: cada minuto (cron: * * * * *)
+Protegido con archivo lock para evitar ejecuciones solapadas.
 """
+import mysql.connector
+import pyodbc
+from datetime import date
+import logging
+import os
+import sys
 
-import time
-from db_config import conectar_mariadb, conectar_sqlserver, log
+LOCK_FILE = '/tmp/sync_stock.lock'
 
-# Agregacion en origen: stock por producto/bodega + alerta + caducidad proxima
-QUERY_ORIGEN = """
-    SELECT
-        iu.producto_id,
-        p.nombre                         AS nombre_producto,
-        iu.bodega_id,
-        b.nombre                         AS nombre_bodega,
-        b.provincia,
-        SUM(iu.stock_actual)             AS stock_total,
-        p.precio_venta,
-        MAX(iu.alerta_stock)             AS en_alerta,
-        MIN(iu.fecha_vencimiento)        AS proxima_caducidad
-    FROM inventario_ubicacion iu
-    JOIN productos p ON p.producto_id = iu.producto_id
-    JOIN bodegas   b ON b.bodega_id   = iu.bodega_id
-    GROUP BY iu.producto_id, p.nombre, iu.bodega_id,
-             b.nombre, b.provincia, p.precio_venta
-"""
+logging.basicConfig(
+    filename='/home/oracle/proyecto_integrador/logs/sync_stock.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
 
-INSERT_DESTINO = """
-    INSERT INTO reportes.consolidado_stock
-        (producto_id, nombre_producto, bodega_id, nombre_bodega, provincia,
-         stock_total, precio_venta, en_alerta, proxima_caducidad)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-"""
+def acquire_lock():
+    if os.path.exists(LOCK_FILE):
+        logging.warning("Ejecucion anterior en curso, saltando este ciclo")
+        sys.exit(0)
+    open(LOCK_FILE, 'w').close()
 
+def release_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
 
-def main():
-    t0 = time.time()
-    log("=== sync_stock (HORARIO) iniciado ===")
+def get_stock_mariadb():
+    conn = mysql.connector.connect(
+        host='127.0.0.1', port=3307,
+        user='sync_reader', password='SyncRead#2026',
+        database='inventarios'
+    )
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT
+            p.producto_id, p.sku, p.nombre AS nombre_producto,
+            b.bodega_id, b.nombre AS nombre_bodega,
+            i.cantidad AS cantidad_actual, i.stock_minimo,
+            (i.cantidad <= i.stock_minimo) AS alerta_reposicion
+        FROM inventario_ubicacion i
+        JOIN productos p ON i.producto_id = p.producto_id
+        JOIN bodegas   b ON i.bodega_id   = b.bodega_id
+        WHERE p.activo = 1
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
 
-    # 1) Extraer de MariaDB con el usuario de solo lectura
-    src = conectar_mariadb(usar_sync=True)
-    cur_src = src.cursor()
-    cur_src.execute(QUERY_ORIGEN)
-    filas = cur_src.fetchall()
-    cur_src.close()
-    src.close()
-    log(f"Extraidas {len(filas)} filas agregadas de MariaDB")
+def upsert_sqlserver(rows):
+    conn_str = (
+        "DRIVER={ODBC Driver 18 for SQL Server};"
+        "SERVER=127.0.0.1,1434;"
+        "DATABASE=reportes;"
+        "UID=sync_writer;PWD=SyncWrite#2026;"
+        "TrustServerCertificate=yes;"
+    )
+    conn = pyodbc.connect(conn_str)
+    cur = conn.cursor()
+    hoy = date.today()
+    cur.execute(
+        "DELETE FROM reportes.consolidado_stock WHERE fecha_corte = ?", hoy
+    )
+    for r in rows:
+        cur.execute("""
+            INSERT INTO reportes.consolidado_stock
+              (producto_id, sku, nombre_producto, bodega_id,
+               nombre_bodega, cantidad_actual, stock_minimo,
+               alerta_reposicion, fecha_corte)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (
+            r['producto_id'], r['sku'], r['nombre_producto'],
+            r['bodega_id'], r['nombre_bodega'],
+            r['cantidad_actual'], r['stock_minimo'],
+            1 if r['alerta_reposicion'] else 0, hoy
+        ))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return len(rows)
 
-    # 2) Cargar en SQL Server con patron DELETE + INSERT transaccional
-    dst = conectar_sqlserver()
-    cur_dst = dst.cursor()
-    cur_dst.fast_executemany = True
+if __name__ == '__main__':
+    acquire_lock()
     try:
-        cur_dst.execute("DELETE FROM reportes.consolidado_stock")
-        # normalizar tipos (en_alerta a BIT)
-        datos = [
-            (f[0], f[1], f[2], f[3], f[4], int(f[5] or 0),
-             float(f[6] or 0), int(f[7] or 0), f[8])
-            for f in filas
-        ]
-        cur_dst.executemany(INSERT_DESTINO, datos)
-        dst.commit()
-        log(f"Cargadas {len(datos)} filas en consolidado_stock")
+        logging.info("Iniciando sync_stock")
+        rows = get_stock_mariadb()
+        n = upsert_sqlserver(rows)
+        logging.info("sync_stock finalizado: %d registros", n)
+        print(f"Stock sincronizado: {n} registros")
     except Exception as e:
-        dst.rollback()
-        log(f"ERROR, rollback aplicado: {e}")
+        logging.error("Error en sync_stock: %s", str(e))
         raise
     finally:
-        cur_dst.close()
-        dst.close()
-
-    log(f"=== sync_stock finalizado en {time.time() - t0:.2f}s ===")
-
-
-if __name__ == "__main__":
-    main()
+        release_lock()
